@@ -2,7 +2,8 @@ from PIL import Image, ImageDraw, ImageFont
 import random
 
 # Define the tuning for a 7-string guitar (from lowest to highest string)
-tuning = ['A', 'E', 'A', 'D', 'G', 'B', 'E']
+tuning = ['E', 'A', 'D', 'G', 'B', 'E']
+num_strings = len(tuning)
 
 # Define the notes in a chromatic scale
 chromatic_scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -12,9 +13,9 @@ position_marker_frets = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24]
 
 # Set up image dimensions
 fretboard_width = 1300
-fretboard_height = 240
 border_thickness = 50
-string_spacing = fretboard_height // 8
+string_spacing = 30
+fretboard_height = string_spacing * (num_strings + 1)
 fret_spacing = fretboard_width // 25
 
 # Function to get the note at a specific fret
@@ -33,9 +34,9 @@ font = ImageFont.truetype('Arial.ttf', fontsize)
 # font = ImageFont.load_default()
 
 # Function to draw notes on the fretboard
-def draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note):
+def draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note, text = 'black'):
     x = border_thickness + fret * fret_spacing + fret_spacing // 2
-    y = border_thickness + (7 - string_index) * string_spacing
+    y = border_thickness + (num_strings - string_index) * string_spacing
     radius = 12
     draw.ellipse([(x - radius, y - radius), (x + radius, y + radius)], fill=color)
     
@@ -45,7 +46,7 @@ def draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note):
     text_height = text_bbox[3] - text_bbox[1]
     
     # draw.text((x - text_width // 2, y - text_height // 2), note, fill='black', font=font)
-    draw.text((x - text_width // 2, y - text_height), note, fill='black', font=font)
+    draw.text((x - text_width // 2, y - text_height), note, fill=text, font=font)
 
 
 def init_fretboard():
@@ -63,8 +64,8 @@ def init_fretboard():
         draw.line([(x, border_thickness + 20), (x, border_thickness + fretboard_height - 20)], fill='darkgray', width=line_width)
 
     # Draw strings with varying thickness (low strings thicker, at the bottom)
-    for string in range(7):  # 7 strings
-        y = border_thickness + (7 - string) * string_spacing
+    for string in range(num_strings):  # 7 strings
+        y = border_thickness + (num_strings - string) * string_spacing
         string_width = 6 if string == 0 else 4  # Thickest for the lowest string
         draw.line([(border_thickness, y), (border_thickness + fretboard_width, y)], fill='lightgray', width=string_width)
 
@@ -91,8 +92,8 @@ def init_fretboard():
         draw.text((x - text_width // 2, border_thickness - text_height - 15), text, fill='white', font=font)
 
     # Draw string tuning on the left side outside the fretboard
-    for string in range(7):
-        y = border_thickness + (7 - string) * string_spacing - string_spacing // 2
+    for string in range(num_strings):
+        y = border_thickness + (num_strings - string) * string_spacing - string_spacing // 2
         text = tuning[string]
         text_bbox = draw.textbbox((0, 0), text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
@@ -136,38 +137,98 @@ def chord_patterns(input_value):
     """
     # Define the chord patterns dictionary
     chord_dictionary = {
-        'maj': [0, 4, 7],
-        'min': [0, 3, 7],
-        'dim': [0, 3, 6],
-        'aug': [0, 4, 8],
-        'maj7': [0, 4, 7, 11],
-        'min7': [0, 3, 7, 10],
-        'dom7': [0, 4, 7, 10],
-        'dim7': [0, 3, 6, 9],
-        'min7b5': [0, 3, 6, 10],
-        'sus2': [0, 2, 7],
-        'sus4': [0, 5, 7],
-        'maj6': [0, 4, 7, 9],
-        'min6': [0, 3, 7, 9],
-        '9': [0, 4, 7, 10, 14],
-        'maj9': [0, 4, 7, 11, 14],
-        'min9': [0, 3, 7, 10, 14],
-        '11': [0, 4, 7, 10, 14, 17],
-        '13': [0, 4, 7, 10, 14, 21],
-        'maj13': [0, 4, 7, 11, 14, 21],
-        'add9': [0, 4, 7, 14],
-        'add11': [0, 4, 7, 17],
-        'add13': [0, 4, 7, 21],
-        '7sus4': [0, 5, 7, 10],
-        '6sus4': [0, 5, 7, 9],
-        '7b5': [0, 4, 6, 10],
-        '7#5': [0, 4, 8, 10],
-        'minmaj7': [0, 3, 7, 11],
-        'maj7b5': [0, 4, 6, 11],
-        'maj7#5': [0, 4, 8, 11],
-        '9sus4': [0, 5, 7, 10, 14],
-        'maj9#11': [0, 4, 7, 11, 14, 18],
+        # **Triadas Básicas**
+        'maj': [0, 4, 7],           # Mayor
+        'min': [0, 3, 7],           # Menor
+        'dim': [0, 3, 6],           # Disminuido
+        'aug': [0, 4, 8],           # Aumentado
+
+        # **Séptimas**
+        'maj7': [0, 4, 7, 11],      # Mayor 7
+        'min7': [0, 3, 7, 10],      # Menor 7
+        'dom7': [0, 4, 7, 10],      # Dominante 7
+        'dim7': [0, 3, 6, 9],       # Disminuido 7
+        'min7b5': [0, 3, 6, 10],    # Menor 7b5 (semi-disminuido)
+
+        # **Acordes Extendidos**
+        '9': [0, 4, 7, 10, 2],              # Dominante 9
+        'maj9': [0, 4, 7, 11, 2],           # Mayor 9
+        'min9': [0, 3, 7, 10, 2],           # Menor 9
+        '11': [0, 4, 7, 10, 2, 5],          # Dominante 11
+        '13': [0, 4, 7, 10, 2, 9],          # Dominante 13
+        'maj13': [0, 4, 7, 11, 2, 9],       # Mayor 13
+
+        # **Acordes con Notas Añadidas**
+        'add9': [0, 4, 7, 2],       # Añade la 9ª
+        'add11': [0, 4, 7, 5],      # Añade la 11ª
+        'add13': [0, 4, 7, 9],      # Añade la 13ª
+
+        # **Acordes Suspendidos**
+        'sus2': [0, 2, 7],           # Suspendido 2
+        'sus4': [0, 5, 7],           # Suspendido 4
+        '7sus4': [0, 5, 7, 10],      # Dominante 7 Suspendido 4
+        '6sus4': [0, 5, 7, 9],       # Mayor 6 Suspendido 4
+
+        # **Acordes Alterados**
+        '7b5': [0, 4, 6, 10],        # Dominante 7b5
+        '7#5': [0, 4, 8, 10],        # Dominante 7#5
+        'maj7b5': [0, 4, 6, 11],     # Mayor 7b5
+        'maj7#5': [0, 4, 8, 11],     # Mayor 7#5
+        '9sus4': [0, 5, 7, 10, 2],   # Mayor 9 Suspendido 4
+        'maj9#11': [0, 4, 7, 11, 2, 6],  # Mayor 9#11
+
+        # **Acordes Menor Mayor Séptima**
+        'minmaj7': [0, 3, 7, 11],    # Menor Mayor 7
+
+        # **Acordes de Cuartal (Quartal Harmony)**
+        'quartal': [0, 5, 10],              # Cuartal Básico (root, perfect 4th, perfect 4th)
+        'quartal7': [0, 5, 10, 3],          # Cuartal con séptima menor
+        'quartal9': [0, 5, 10, 3, 7],       # Cuartal con séptima menor y quinta
+
+        # **Acordes de Quintal (Quintal Harmony)**
+        'quintal': [0, 7, 2],               # Quintal Básico (root, perfect 5th, major 2nd)
+        'quintal7': [0, 7, 2, 10],          # Quintal con séptima menor
+        'quintal9': [0, 7, 2, 10, 4],       # Quintal con séptima menor y tercera mayor
+
+        # **Acordes Power**
+        'power': [0, 7],                     # Power Chord (root y perfect 5th)
+        'power7': [0, 7, 10],                # Power Chord con séptima menor
+        'power9': [0, 7, 10, 2],             # Power Chord con séptima menor y 9ª
+
+        # **Acordes Adicionales**
+        'maj11': [0, 4, 7, 11, 5],           # Mayor 11
+        'maj7#11': [0, 4, 7, 11, 6],         # Mayor 7#11
+        'min11': [0, 3, 7, 10, 5],           # Menor 11
+        'min9b5': [0, 3, 6, 10, 2],          # Menor 9b5
+        'min11b5': [0, 3, 6, 10, 5, 2],      # Menor 11b5
+
+        # **Acordes Alterados Adicionales**
+        'aug7': [0, 4, 8, 10],               # Aumentado 7
+        'dim9': [0, 3, 6, 9, 2],             # Disminuido 9
+        'dim11': [0, 3, 6, 9, 5],            # Disminuido 11
+        'aug9': [0, 4, 8, 10, 2],            # Aumentado 9
+
+        # **Acordes Extendidos de Cuartal y Quintal**
+        'quartal11': [0, 5, 10, 3, 7],       # Cuartal 11
+        'quintal13': [0, 7, 2, 10, 4, 9],    # Quintal 13
+
+        # **Acordes Hexatónicos y Heptatónicos**
+        'hexatonic': [0, 4, 7, 11, 2, 9],    # Hexatónico
+        'heptatonic': [0, 2, 4, 5, 7, 9, 11],# Heptatónico
+
+        # **Otros Acordes Comunes**
+        'maj6': [0, 4, 7, 9],                # Mayor 6
+        'min6': [0, 3, 7, 9],                # Menor 6
+
+        # **Acordes con Alteraciones Específicas**
+        'maj7b5': [0, 4, 6, 11],             # Mayor 7b5
+        'maj7#5': [0, 4, 8, 11],             # Mayor 7#5
+
+        # **Acordes Diminuido y Aumentado con Extensiones**
+        'dim7': [0, 3, 6, 9],                 # Disminuido 7
+        'aug7': [0, 4, 8, 10],                # Aumentado 7
     }
+
     
     # Handle the input based on its type
     if isinstance(input_value, str):
@@ -199,7 +260,7 @@ def draw_arpeggio(draw = init_fretboard(), root_note = 'C', arpeggio_type = 'maj
                 color_index = interval_index % len(colors)
                 draw_note_on_fretboard(draw, fretboard, string_index, fret, colors[color_index], note)
 
-    return draw.image
+    return draw
 
 # Dictionary for scale patterns with intervals
 def scale_patterns(input_value):
@@ -271,6 +332,41 @@ def scale_patterns(input_value):
     return None
 
 # Function to draw scales on the fretboard
+def draw_black_scale(draw = init_fretboard(), root_note = 'C', scale_type = 'major'):
+    pattern = scale_patterns(scale_type)
+    if not pattern:
+        return
+    #draw = fretboard_title(draw, f"{root_note} {scale_type}")
+    root_note_index = chromatic_scale.index(root_note)
+
+    # Define specific colors for the intervals
+    interval_colors = {
+        0: 'black',   # Root
+        2: 'black',  # Second
+        4: 'black', # Third
+        5: 'black',# Fourth
+        7: 'black',# Fifth
+        9: 'black',# Sixth
+        11: 'black'  # Seventh
+    }
+    default_color = 'black'  # Default color for other intervals
+    
+    for string_index, string_notes in enumerate(fretboard):
+        for fret, note in enumerate(string_notes):
+            note_index = (chromatic_scale.index(note) - root_note_index) % 12
+            if any((note_index + 12 * octave) % 12 in pattern for octave in range(2)):
+                interval_index = next(i for i, interval in enumerate(pattern) if (interval % 12) == note_index)
+                
+                # Check if the interval is in the highlighted intervals and select the corresponding color
+                if interval_index in [0, 2, 4, 6]:  # Root (0), Third (4), Fifth (7), Seventh (11) intervals
+                    color = interval_colors.get(pattern[interval_index], default_color)
+                else:
+                    color = default_color
+                
+                draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note, text='white')
+    return draw
+
+# Function to draw scales on the fretboard
 def draw_scale(draw = init_fretboard(), root_note = 'C', scale_type = 'major'):
     pattern = scale_patterns(scale_type)
     if not pattern:
@@ -303,7 +399,7 @@ def draw_scale(draw = init_fretboard(), root_note = 'C', scale_type = 'major'):
                     color = default_color
                 
                 draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note)
-    return draw.image
+    return draw
 
 # Function to draw arpeggios in specified zones on the fretboard
 def draw_arpeggios_zones(draw = init_fretboard(), zones = [['C', 'min', 5, 12, 1, 7]]):
@@ -346,7 +442,7 @@ def draw_arpeggios_zones(draw = init_fretboard(), zones = [['C', 'min', 5, 12, 1
                 # Check if the note at the fret is part of the chord pattern
                 if any((note_index + 12 * octave) % 12 in pattern for octave in range(2)):
                     draw_note_on_fretboard(draw, fretboard, string_index, fret, color, note_at_fret)
-    return draw.image
+    return draw
 
 
 def merge_images_vertically(images):
@@ -398,11 +494,51 @@ zones = [
 # draw_arpeggio(init_fretboard(), 'C#', 'maj9#11').save('7_string_fretboard_complex_arpeggio.png')
 
 
-merged_image = merge_images_vertically([draw_scale(init_fretboard(), 'A', 'harmonic_minor'),
-draw_scale(init_fretboard(), 'D', 'dorian'),
-draw_scale(init_fretboard(), 'E', 'phrygian_dominant'),
-draw_scale(init_fretboard(), 'F', 'lydian'),
-draw_scale(init_fretboard(), 'B', ['locrian',0]),
-draw_scale(init_fretboard(), 'A', 'harmonic_minor')])
+# merged_image = merge_images_vertically(
+#     [draw_scale(init_fretboard(), 'A', 'harmonic_minor'),
+#     draw_scale(init_fretboard(), 'D', ['dorian',0]),
+#     draw_scale(init_fretboard(), 'E', ['phrygian_dominant',0]),
+#     draw_scale(init_fretboard(), 'F', ['lydian',0]),
+#     draw_scale(init_fretboard(), 'B', ['locrian',0]),
+#     draw_scale(init_fretboard(), 'A', ['harmonic_minor',0])])
 
+
+# merged_image = merge_images_vertically(
+#     [
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'D#', 'minmaj7').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'F', '7b5').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'F#', 'maj7#5').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'D', ['sus4', 0]).image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'A#', ['sus4', 0]).image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'B', 'minmaj7').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'D', 'dim').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'hungarian_minor'), 'D#', 'minmaj7').image
+# ]
+# )
+
+
+
+
+merged_image = merge_images_vertically(
+    [
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'D#', 'minmaj7').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'F', 'min7b5').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'F', 'maj7#5').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'G#', 'min7').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'A#', 'dom7').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'B', 'maj7').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'D', 'dim').image,
+    draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'D#', 'minmaj7').image
+]
+)
+merged_image.show()  # Display the merged image
+
+merged_image = merge_images_vertically(
+    [
+    draw_arpeggio(draw=init_fretboard(),root_note = 'C', arpeggio_type = 'min11b5').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'A', arpeggio_type = 'min11b5').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'F#', arpeggio_type = 'min11b5').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'D#', arpeggio_type = 'min11b5').image,
+]
+)
 merged_image.show()  # Display the merged image
