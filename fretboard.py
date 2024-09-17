@@ -162,6 +162,7 @@ def chord_patterns(input_value):
         'add9': [0, 4, 7, 2],       # Añade la 9ª
         'add11': [0, 4, 7, 5],      # Añade la 11ª
         'add13': [0, 4, 7, 9],      # Añade la 13ª
+        'minadd9': [0, 3, 7, 2],
 
         # **Acordes Suspendidos**
         'sus2': [0, 2, 7],           # Suspendido 2
@@ -219,6 +220,8 @@ def chord_patterns(input_value):
         # **Otros Acordes Comunes**
         'maj6': [0, 4, 7, 9],                # Mayor 6
         'min6': [0, 3, 7, 9],                # Menor 6
+        'min6add9': [0, 3, 7, 9, 2],               # 
+
 
         # **Acordes con Alteraciones Específicas**
         'maj7b5': [0, 4, 6, 11],             # Mayor 7b5
@@ -470,6 +473,47 @@ def merge_images_vertically(images):
     
     return merged_image
 
+def merge_images_grid(images):
+    """
+    Merge a list of images into a grid with 2 images per row.
+    
+    :param images: List of Pillow Image objects to be merged.
+    :return: A new Pillow Image object with images arranged in a grid.
+    """
+    if not images:
+        raise ValueError("The image list cannot be empty.")
+    
+    # Group images into rows of 2 images each
+    rows = [images[i:i+2] for i in range(0, len(images), 2)]
+    
+    # Calculate the total width and height
+    total_width = 0
+    total_height = 0
+    row_sizes = []  # List of tuples (row_width, row_height)
+    
+    for row in rows:
+        row_width = sum(img.width for img in row)
+        row_height = max(img.height for img in row)
+        row_sizes.append((row_width, row_height))
+        total_width = max(total_width, row_width)
+        total_height += row_height
+    
+    # Create a new image with the calculated dimensions
+    merged_image = Image.new('RGB', (total_width, total_height))
+    
+    # Paste images into the merged_image
+    y_offset = 0
+    for index, row in enumerate(rows):
+        x_offset = 0
+        row_height = row_sizes[index][1]
+        for img in row:
+            merged_image.paste(img, (x_offset, y_offset))
+            x_offset += img.width
+        y_offset += row_height
+    
+    return merged_image
+
+
 # Example usage of draw_arpeggios_zones
 # [Note, chord, fret start, fret end, string start, string end]
 zones = [
@@ -480,6 +524,12 @@ zones = [
     ['E', 'aug', 1, 5, 1, 7], # Eaug: Fret 12-15, Strings 1-6
     ['A', 'maj', 5, 8, 1, 7],   # Amaj: Fret 5-8, Strings 1-6
 ]
+
+
+
+#############################################################
+#### EXAMPLES ######
+#############################################################
 
 # Call the function to draw arpeggios in the specified zones
 # draw_arpeggios_zones(init_fretboard(), zones).show()
@@ -519,7 +569,7 @@ zones = [
 
 
 
-merged_image = merge_images_vertically(
+merged_image = merge_images_grid(
     [
     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'D#', 'minmaj7').image,
     draw_arpeggio(draw_black_scale(init_fretboard(), 'D#', 'harmonic_minor'), 'F', 'min7b5').image,
@@ -533,12 +583,34 @@ merged_image = merge_images_vertically(
 )
 merged_image.show()  # Display the merged image
 
-merged_image = merge_images_vertically(
+merged_image = merge_images_grid(
     [
-    draw_arpeggio(draw=init_fretboard(),root_note = 'C', arpeggio_type = 'min11b5').image,
-    draw_arpeggio(draw=init_fretboard(),root_note = 'A', arpeggio_type = 'min11b5').image,
-    draw_arpeggio(draw=init_fretboard(),root_note = 'F#', arpeggio_type = 'min11b5').image,
-    draw_arpeggio(draw=init_fretboard(),root_note = 'D#', arpeggio_type = 'min11b5').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'C', arpeggio_type = 'minmaj7').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'A', arpeggio_type = 'min6add9').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'F#', arpeggio_type = 'minmaj7').image,
+    draw_arpeggio(draw=init_fretboard(),root_note = 'D#', arpeggio_type = 'min9').image,
 ]
 )
 merged_image.show()  # Display the merged image
+
+
+# merged_image = merge_images_grid(
+#     [
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'E', arpeggio_type = 'maj').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'E', arpeggio_type = 'maj9').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'F#', arpeggio_type = 'maj').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'F#', arpeggio_type = 'add9').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'G#', arpeggio_type = 'min').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'G#', arpeggio_type = 'minadd9').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'C#', arpeggio_type = 'min').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'C#', arpeggio_type = 'min6add9').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'D#', arpeggio_type = 'min').image,
+#     draw_arpeggio(draw_black_scale(init_fretboard(), 'E', 'lydian'),root_note = 'D#', arpeggio_type = 'min7').image,
+# ]
+# )
+# merged_image.show()  # Display the merged image
+
+
+#############################################################
+#### EXAMPLES ######
+#############################################################
