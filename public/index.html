@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 0.5rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .field { display: flex; flex-direction: column; margin: 0.5rem 0; }
+    label { font-size: 0.9rem; margin-bottom: 0.2rem; }
+    select, button { padding: 0.5rem; font-size: 1rem; }
+    .box { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; }
+    #queue { width: 100%; height: 220px; }
+    .tuning-select { width: 70px; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .hidden { display: none; }
+    .note { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <h1>Generate Music PDFs</h1>
+  <p>This page posts a list payload to your API and opens the returned PDF in a new tab.</p>
+
+  <!-- Type selector -->
+  <div class="box">
+    <div class="row">
+      <div class="field">
+        <label for="type">Type</label>
+        <select id="type">
+          <option value="scale">Scale</option>
+          <option value="chord">Chord</option>
+          <option value="mixed">Mixed</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Dynamic forms -->
+    <div id="form-scale" class="row">
+      <div class="field">
+        <label for="note-scale" class="note">Note (Scale)</label>
+        <select id="note-scale"></select>
+      </div>
+      <div class="field">
+        <label for="scale-type">Scale</label>
+        <select id="scale-type"></select>
+      </div>
+    </div>
+
+    <div id="form-chord" class="row hidden">
+      <div class="field">
+        <label for="note-chord" class="note">Note (Chord)</label>
+        <select id="note-chord"></select>
+      </div>
+      <div class="field">
+        <label for="chord-type">Chord</label>
+        <select id="chord-type"></select>
+      </div>
+    </div>
+
+    <div id="form-mixed" class="row hidden">
+      <div class="field">
+        <label for="note-mixed-scale" class="note">Note (Scale)</label>
+        <select id="note-mixed-scale"></select>
+      </div>
+      <div class="field">
+        <label for="mixed-scale-type">Scale</label>
+        <select id="mixed-scale-type"></select>
+      </div>
+      <div class="field">
+        <label for="note-mixed-chord" class="note">Note (Chord)</label>
+        <select id="note-mixed-chord"></select>
+      </div>
+      <div class="field">
+        <label for="mixed-chord-type">Chord</label>
+        <select id="mixed-chord-type"></select>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top: 0.5rem;">
+      <button id="btn-add" type="button">Add</button>
+      <button id="btn-del" type="button">Delete selected</button>
+      <button id="btn-reset" type="button">Reset list</button>
+      <button id="btn-generate" type="button">Generate PDF</button>
+    </div>
+  </div>
+
+  <!-- Tuning box -->
+  <div class="box" style="margin-top: 1rem;">
+    <h3>Tuning</h3>
+    <div class="row">
+      <div class="field">
+        <label for="num-strings">Number of Strings</label>
+        <select id="num-strings">
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6" selected>6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+    </div>
+    <div id="tuning-notes" class="row" style="margin-top: 1rem;">
+      <!-- Dynamic tuning selects will appear here -->
+    </div>
+  </div>
+
+  <!-- Queue box -->
+  <div class="box" style="margin-top: 1rem;">
+    <label for="queue">Items to send</label>
+    <!-- list box as a multi-select -->
+    <select id="queue" multiple></select>
+    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #555;">
+      Payloads:
+      <ul style="margin-top: 0.3rem;">
+        <li><b>scale</b>: <code>[["A#", "lydian"], ["F#", "major"]]</code></li>
+        <li><b>chord</b>: <code>[["A#", "mmaj7"], ["F#", "min7"]]</code></li>
+        <li><b>mixed</b>: <code>[{"{"}"scale": ["A#", "lydian"], "chord": ["A#", "mmaj7"]{"}"}, ...]</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    /***********************
+     * Config
+     ***********************/
+    // Map "type" to endpoint path (behind /api/* from nginx)
+    const ENDPOINTS = {
+      scale: '/api/endpoint-scale',
+      chord: '/api/endpoint-chord',
+      mixed: '/api/endpoint-mixed'
+    };
+
+    // Notes (natural + sharps). Add flats if you want.
+    const NOTES = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+
+    // Scale & chord vocab you want to expose (edit to your taste)
+    const SCALE_TYPES = [
+      "major", "minor", "harmonic_minor", "melodic_minor",
+      "pentatonic_major", "pentatonic_minor",
+      "pentatonic_harmonic_minor", "pentatonic_phrygian",
+      "pentatonic_dorian_minor", "pentatonic_locrian",
+      "lydian_pentatonic", "augmented_pentatonic",
+      "lydian_sharp5_pentatonic", "phrygian_dominant_pentatonic",
+      "mixolydian_b6_pentatonic", "half_whole_diminished_pentatonic",
+      "altered_pentatonic", "blues",
+      "dorian", "phrygian", "lydian", "mixolydian", "locrian",
+      "whole_tone", "diminished", "chromatic", "augmented",
+      "phrygian_dominant", "double_harmonic",
+      "hungarian_minor", "hungarian_major",
+      "neapolitan_minor", "neapolitan_major",
+      "persian", "enigmatic", "hindu",
+      "japanese", "arabic", "gypsy", "byzantine",
+      "balinese", "todi",
+      "bebop_major", "bebop_minor", "bebop_dominant",
+      "bebop_dorian", "bebop_melodic_minor",
+      "bebop_harmonic_minor",
+      "flamenco", "romanian_minor",
+      "lydian_diminished", "javanese",
+      "blues_major", "blues_minor",
+      "lydian_augmented", "half_whole_diminished",
+      "harmonic_major", "altered_scale",
+      "prometheus",
+      "egyptian_pentatonic", "chinese_pentatonic"
+    ];
+
+    const CHORD_TYPES = [
+      "maj", "min", "dim", "aug",
+      "maj7", "min7", "dom7", "dim7", "min7b5",
+      "9", "maj9", "min9", "11", "13", "maj13",
+      "add9", "add11", "add13",
+      "minadd9", "minadd11", "minadd13",
+      "add2", "add4",
+      "add#11", "add9#11",
+      "maj6", "maj6add9", "6add9", "maj7add13",
+      "sus2", "sus4", "7sus4", "6sus4", "9sus4",
+      "7b5", "7#5", "maj7b5", "maj7#5", "maj9#11",
+      "minmaj7",
+      "quartal", "quartal7", "quartal9",
+      "quintal", "quintal7", "quintal9",
+      "power", "power7", "power9",
+      "maj11", "maj7#11", "min11", "min9b5", "min11b5",
+      "aug7", "dim9", "dim11", "aug9",
+      "quartal11", "quintal13",
+      "hexatonic", "heptatonic",
+      "min6", "min6add9"
+    ];
+
+    /***********************
+     * DOM helpers
+     ***********************/
+    const qs = (s) => document.querySelector(s);
+    const qsa = (s) => Array.from(document.querySelectorAll(s));
+
+    // Get all DOM elements
+    const typeEl = qs('#type');
+    const formScale = qs('#form-scale');
+    const formChord = qs('#form-chord');
+    const formMixed = qs('#form-mixed');
+
+    const noteScaleEl = qs('#note-scale');
+    const noteChordEl = qs('#note-chord');
+    const noteMixedScaleEl = qs('#note-mixed-scale');
+    const noteMixedChordEl = qs('#note-mixed-chord');
+
+    const scaleTypeEl = qs('#scale-type');
+    const chordTypeEl = qs('#chord-type');
+    const mixedScaleTypeEl = qs('#mixed-scale-type');
+    const mixedChordTypeEl = qs('#mixed-chord-type');
+
+    const queueEl = qs('#queue');
+    const addBtn = qs('#btn-add');
+    const delBtn = qs('#btn-del');
+    const resetBtn = qs('#btn-reset');
+    const genBtn = qs('#btn-generate');
+
+    // Tuning elements
+    const numStringsEl = qs('#num-strings');
+    const tuningNotesEl = qs('#tuning-notes');
+    let tuningNotes = ["E", "A", "D", "G", "B", "E"]; // Default standard tuning for 6 strings
+
+    /***********************
+     * Functions
+     ***********************/
+    function fillOptions(select, items) {
+      select.innerHTML = '';
+      items.forEach(x => {
+        const opt = document.createElement('option');
+        opt.value = x;
+        opt.textContent = x.replace(/_/g, ' ');
+        select.appendChild(opt);
+      });
+    }
+
+    function createTuningSelects(numStrings) {
+      tuningNotesEl.innerHTML = '';
+      
+      // Ensure tuningNotes array has the right length
+      if (tuningNotes.length !== numStrings) {
+        if (numStrings > tuningNotes.length) {
+          // Add more strings with reasonable defaults
+          const defaultNotes = ["B", "E", "A", "D", "G", "B", "E"];
+          for (let i = tuningNotes.length; i < numStrings; i++) {
+            tuningNotes.push(defaultNotes[i % defaultNotes.length]);
+          }
+        } else {
+          // Remove extra strings
+          tuningNotes = tuningNotes.slice(0, numStrings);
+        }
+      }
+      
+      // Create selects for each string
+      for (let i = 0; i < numStrings; i++) {
+        const field = document.createElement('div');
+        field.className = 'field';
+        
+        const label = document.createElement('label');
+        label.textContent = `String ${i + 1}`;
+        label.className = 'note';
+        
+        const select = document.createElement('select');
+        select.className = 'tuning-select';
+        select.dataset.stringIndex = i;
+        
+        // Populate with notes
+        NOTES.forEach(note => {
+          const option = document.createElement('option');
+          option.value = note;
+          option.textContent = note;
+          select.appendChild(option);
+        });
+        
+        // Set current value
+        select.value = tuningNotes[i] || NOTES[0];
+        
+        // Update tuningNotes array when changed
+        select.addEventListener('change', (e) => {
+          const index = parseInt(e.target.dataset.stringIndex);
+          tuningNotes[index] = e.target.value;
+        });
+        
+        field.appendChild(label);
+        field.appendChild(select);
+        tuningNotesEl.appendChild(field);
+      }
+    }
+
+    function refreshQueueListbox() {
+      queueEl.innerHTML = '';
+      const t = typeEl.value;
+
+      payloadQueue.forEach((item, idx) => {
+        const opt = document.createElement('option');
+        let label = '';
+        if (t === 'scale') {
+          // ["A#", "lydian"]
+          label = `Scale: ${item[0]} ${item[1]}`;
+        } else if (t === 'chord') {
+          // ["A#", "mmaj7"]
+          label = `Chord: ${item[0]} ${item[1]}`;
+        } else {
+          // { scale: ["A#", "lydian"], chord: ["A#", "mmaj7"] }
+          label = `Mixed: scale(${item.scale[0]} ${item.scale[1]}) | chord(${item.chord[0]} ${item.chord[1]})`;
+        }
+        opt.value = String(idx);
+        opt.textContent = label;
+        queueEl.appendChild(opt);
+      });
+    }
+
+    function setFormVisibility() {
+      const t = typeEl.value;
+      formScale.classList.toggle('hidden', t !== 'scale');
+      formChord.classList.toggle('hidden', t !== 'chord');
+      formMixed.classList.toggle('hidden', t !== 'mixed');
+
+      // When type changes, reset queue (different shapes)
+      payloadQueue = [];
+      refreshQueueListbox();
+    }
+
+    /***********************
+     * Initialization
+     ***********************/
+    // Initialize dropdowns
+    [noteScaleEl, noteChordEl, noteMixedScaleEl, noteMixedChordEl].forEach(el => fillOptions(el, NOTES));
+    [scaleTypeEl, mixedScaleTypeEl].forEach(el => fillOptions(el, SCALE_TYPES));
+    [chordTypeEl, mixedChordTypeEl].forEach(el => fillOptions(el, CHORD_TYPES));
+
+    // Initialize tuning selects
+    createTuningSelects(parseInt(numStringsEl.value));
+
+    // The queue we send to the API (array of arrays or dicts, depending on type)
+    let payloadQueue = [];
+
+    // Set initial form visibility
+    setFormVisibility();
+
+    /***********************
+     * Event Listeners
+     ***********************/
+    typeEl.addEventListener('change', setFormVisibility);
+
+    // Update when number of strings changes
+    numStringsEl.addEventListener('change', (e) => {
+      const numStrings = parseInt(e.target.value);
+      createTuningSelects(numStrings);
+    });
+
+    // Add current form selection to queue
+    addBtn.addEventListener('click', () => {
+      const t = typeEl.value;
+
+      if (t === 'scale') {
+        const note = noteScaleEl.value;
+        const scale = scaleTypeEl.value;
+        payloadQueue.push([note, scale]);
+      } else if (t === 'chord') {
+        const note = noteChordEl.value;
+        const chord = chordTypeEl.value;
+        payloadQueue.push([note, chord]);
+      } else {
+        // mixed
+        const nScale = noteMixedScaleEl.value;
+        const sType = mixedScaleTypeEl.value;
+        const nChord = noteMixedChordEl.value;
+        const cType = mixedChordTypeEl.value;
+        payloadQueue.push({
+          scale: [nScale, sType],
+          chord: [nChord, cType]
+        });
+      }
+      refreshQueueListbox();
+    });
+
+    // Delete selected items
+    delBtn.addEventListener('click', () => {
+      const selected = Array.from(queueEl.selectedOptions).map(o => Number(o.value));
+      if (!selected.length) return;
+      // Remove from end to start to keep indices valid
+      selected.sort((a, b) => b - a).forEach(i => payloadQueue.splice(i, 1));
+      refreshQueueListbox();
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', () => {
+      payloadQueue = [];
+      refreshQueueListbox();
+    });
+
+    // Generate: POST to endpoint, receive PDF, open in new tab
+    genBtn.addEventListener('click', async () => {
+      if (payloadQueue.length === 0) {
+        alert('Add at least one item to the list.');
+        return;
+      }
+
+      const t = typeEl.value;
+      const url = ENDPOINTS[t];
+      if (!url) {
+        alert(`No endpoint configured for type "${t}"`);
+        return;
+      }
+
+      // Build the complete payload with tuning
+      const completePayload = {
+        data: payloadQueue,
+        tunning: tuningNotes // Use the current tuning notes array
+      };
+
+      genBtn.disabled = true;
+      genBtn.textContent = 'Generating…';
+
+      // Open a blank tab synchronously to avoid popup blockers
+      const win = window.open('', '_blank');
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+          body: JSON.stringify(completePayload)
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`API error ${resp.status}: ${text}`);
+        }
+
+        const blob = await resp.blob();
+        const pdfUrl = URL.createObjectURL(blob);
+        if (win) {
+          win.location.href = pdfUrl;
+        } else {
+          // Fallback if popup blocked
+          window.location.href = pdfUrl;
+        }
+
+        // Optional: revoke object URL later
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
+      } catch (err) {
+        if (win) win.close();
+        alert(err.message || 'Failed to generate PDF');
+      } finally {
+        genBtn.disabled = false;
+        genBtn.textContent = 'Generate PDF';
+      }
+    });
+  </script>
+</body>
+</html>
+
