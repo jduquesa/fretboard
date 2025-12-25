@@ -150,6 +150,212 @@ class Fretboard:
         draw.text((text_x, text_y), title, font=self.font, fill=(255, 255, 255))
         return draw
 
+
+def find_chords_in_scale(note, scale_name):
+    # constantes
+    chromatic_scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    chord_dictionary = {
+        # **Triadas Básicas**
+        'maj': [0, 4, 7],           # luminoso, estable, afirmativo, “hogar”
+        'min': [0, 3, 7],           # melancólico, introspectivo, emotivo
+        'dim': [0, 3, 6],           # tenso, inquietante, inestable, “suspenso”
+        'aug': [0, 4, 8],           # expectante, soñador, surreal, flotante
+
+        # **Séptimas**
+        'maj7': [0, 4, 7, 11],      # elegante, nostálgico, contemplativo, urbano
+        'min7': [0, 3, 7, 10],      # cálido, íntimo, soul, “confesional”
+        'dom7': [0, 4, 7, 10],      # picante, bluesy, extrovertido, resolutivo
+        'dim7': [0, 3, 6, 9],       # misterioso, vintage terror, teatral
+        'min7b5': [0, 3, 6, 10],    # sombrío, cine noir, suspenso contenido
+
+        # **Acordes Extendidos**
+        '9': [0, 4, 7, 10, 2],              # groovy, sociable, “club”, chispeante
+        'maj9': [0, 4, 7, 11, 2],           # luminoso, cinematográfico, etéreo
+        'min9': [0, 3, 7, 10, 2],           # melancólico, neblinoso, neo-soul
+        '11': [0, 4, 7, 10, 2, 5],          # denso, urbano, modern-jazz, áspero si cerrado
+        '13': [0, 4, 7, 10, 2, 9],          # festivo, funky, expansivo
+        'maj13': [0, 4, 7, 11, 2, 9],       # radiante, “cielo abierto”, elegante y suave
+
+        # **Acordes con Notas Añadidas (Add)**
+        'add9': [0, 4, 7, 2],        # brillante, juvenil, esperanzador
+        'add11': [0, 4, 7, 5],       # dulce con fricción, curioso, indie
+        'add13': [0, 4, 7, 9],       # veraniego, vintage pop, amable
+        'minadd9': [0, 3, 7, 2],     # triste-bello, soñador, “lluvia en ventana”
+        'minadd11': [0, 3, 7, 5],    # íntimo con halo modal, folk melancólico
+        'minadd13': [0, 3, 7, 9],    # agridulce, nostálgico con luz
+
+        # **Aliases útiles**
+        'add2': [0, 4, 7, 2],        # = add9 | fresco, abierto
+        'add4': [0, 4, 7, 5],        # = add11 | curioso, reflexivo
+
+        # **Colores Mayores extra**
+        'add#11': [0, 4, 7, 6],              # lidio: mágico, “suspensión solar”, moderno
+        'add9#11': [0, 4, 7, 2, 6],          # brillante y onírico, dream-pop/jazz-film
+        'maj6': [0, 4, 7, 9],                # amable, retro, “domingo por la tarde”
+        'maj6add9': [0, 4, 7, 9, 2],         # 6/9: sedoso, tónico perfecto, pacífico
+        '6add9': [0, 4, 7, 9, 2],            # alias de 6/9 | seda, optimista
+        'maj7add13': [0, 4, 7, 11, 9],       # sofisticado, cálido, balada elegante
+
+        # **Acordes Suspendidos**
+        'sus2': [0, 2, 7],            # abierto, inocente, contemplativo
+        'sus4': [0, 5, 7],            # heroico, expectante, himno
+        '7sus4': [0, 5, 7, 10],       # groove épico, rock clásico, afirmación sin 3ª
+        '6sus4': [0, 5, 7, 9],        # luminoso, folk-rock, respiro despejado
+        '9sus4': [0, 5, 7, 10, 2],    # amplio, gospel/funk, celebración controlada
+
+        # **Acordes Alterados**
+        '7b5': [0, 4, 6, 10],         # filoso, tensión cinematográfica, “peligro”
+        '7#5': [0, 4, 8, 10],         # psicodélico, ardiente, exótico
+        'maj7b5': [0, 4, 6, 11],      # cristalino con filo, sofisticación fría
+        'maj7#5': [0, 4, 8, 11],      # radiante, lujoso, “sol fuerte”
+        'maj9#11': [0, 4, 7, 11, 2, 6],  # lidio cinematográfico, sublime, flotante
+
+        # **Acordes Menor Mayor Séptima**
+        'minmaj7': [0, 3, 7, 11],     # melancolía sofisticada, “feliz-triste”, anime/jazz
+
+        # **Acordes de Cuartal (Quartal Harmony)**
+        'quartal': [0, 5, 10],              # modal, nebuloso, “paisaje”
+        'quartal7': [0, 5, 10, 3],          # enigmático, cerebral, post-bop
+        'quartal9': [0, 5, 10, 3, 7],       # amplio, etéreo, moderno
+
+        # **Acordes de Quintal (Quintal Harmony)**
+        'quintal': [0, 7, 2],               # épico, cinematográfico, aireado
+        'quintal7': [0, 7, 2, 10],          # heroico con carácter, rock orquestal
+        'quintal9': [0, 7, 2, 10, 4],       # grandilocuente con centro tonal claro
+
+        # **Acordes Power**
+        'power': [0, 7],                    # contundente, neutral, “muro”
+        'power7': [0, 7, 10],               # agresivo, rock/blues, rugoso
+        'power9': [0, 7, 10, 2],            # moderno, metal/groove, expansión
+
+        # **Acordes Adicionales**
+        'maj11': [0, 4, 7, 11, 5],          # mayor con roce 3–11: curioso, indie-jazz
+        'maj7#11': [0, 4, 7, 11, 6],        # lidio pulcro, ciencia-ficción amable
+        'min11': [0, 3, 7, 10, 5],          # profundo, neo-soul, nocturno
+        'min9b5': [0, 3, 6, 10, 2],         # tenso-poético, noir, suspenso elegante
+        'min11b5': [0, 3, 6, 10, 5, 2],     # bruma densa, misterio modal
+
+        # **Acordes Alterados Adicionales**
+        'aug7': [0, 4, 8, 10],              # ardiente, febril, trance vintage
+        'dim9': [0, 3, 6, 9, 2],            # carrusel extraño, circo oscuro
+        'dim11': [0, 3, 6, 9, 5],           # cámara de ecos, terror teatral
+        'aug9': [0, 4, 8, 10, 2],           # exotismo brillante, psicodelia elegante
+
+        # **Acordes Extendidos de Cuartal y Quintal**
+        'quartal11': [0, 5, 10, 3, 7],      # paisaje amplio, espiritual, “montaña”
+        'quintal13': [0, 7, 2, 10, 4, 9],   # épico-cálido, banda sonora
+
+        # **Acordes Hexatónicos y Heptatónicos**
+        'hexatonic': [0, 4, 7, 11, 2, 9],   # pad mayor lujoso, ensueño
+        'heptatonic': [0, 2, 4, 5, 7, 9, 11], # escala mayor completa: didáctico, claro
+
+        # **Otros Comunes**
+        'min6': [0, 3, 7, 9],               # dulce-nostálgico, vintage latino/jazz
+        'min6add9': [0, 3, 7, 9, 2],        # cinematográfico triste-luminoso
+    }
+    scale_dictionary = {
+        'major': [0, 2, 4, 5, 7, 9, 11],  # Alegre, brillante, optimista
+        'minor': [0, 2, 3, 5, 7, 8, 10],  # Triste, melancólico, serio
+        'harmonic_minor': [0, 2, 3, 5, 7, 8, 11],  # Exótico, dramático, oriental
+        'melodic_minor': [0, 2, 3, 5, 7, 9, 11],  # Ambiguo, sofisticado, jazzístico
+        'pentatonic_major': [0, 2, 4, 7, 9],  # Simple, folclórico, abierto
+        'pentatonic_minor': [0, 3, 5, 7, 10],  # Bluesy, introspectivo, emotivo
+        'pentatonic_harmonic_minor': [0, 3, 7, 8, 11],  # Trágico, dramático, exótico
+        'pentatonic_phrygian': [0, 1, 3, 5, 7],  # Oscuro, étnico, místico
+        'pentatonic_dorian_minor': [0, 3, 5, 7, 9],  # Menor moderno, melancólico pero ágil
+        'pentatonic_locrian': [0, 3, 5, 6, 10],  # Muy oscuro, inestable, disonante
+        'lydian_pentatonic': [0, 2, 4, 6, 9],  # Onírico, etéreo, surrealista
+        'augmented_pentatonic': [0, 4, 8, 10, 2],  # Brillante pero distorsionado, inestable
+        'lydian_sharp5_pentatonic': [0, 2, 4, 8, 9],  # Soñador pero deforme, elegante
+        'phrygian_dominant_pentatonic': [0, 1, 4, 7, 10],  # Muy oscuro, exótico, árabe-metal
+        'mixolydian_b6_pentatonic': [0, 2, 5, 8, 10],  # Oscuro, modal, blues triste
+        'half_whole_diminished_pentatonic': [0, 1, 3, 4, 6],  # Muy tenso, jazzy, inestable
+        'altered_pentatonic': [0, 1, 3, 6, 10],  # Súper disonante, caos controlado
+        'blues': [0, 3, 5, 6, 7, 10],  # Expresivo, con lamento, profundo
+        'dorian': [0, 2, 3, 5, 7, 9, 10],  # Místico, menor con toque optimista
+        'phrygian': [0, 1, 3, 5, 7, 8, 10],  # Oscuro, flamenco, español
+        'lydian': [0, 2, 4, 6, 7, 9, 11],  # Soñador, etéreo, flotante
+        'mixolydian': [0, 2, 4, 5, 7, 9, 10],  # Alegre pero relajado, rock, blues
+        'locrian': [0, 1, 3, 5, 6, 8, 10],  # Inestable, tenso, misterioso
+        'whole_tone': [0, 2, 4, 6, 8, 10],  # Ambiguo, onírico, impresionista
+        'diminished': [0, 2, 3, 5, 6, 8, 9, 11],  # Tenso, dramático, misterioso
+        'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],  # Disonante, atonal, complejo
+        'augmented': [0, 3, 4, 7, 8, 11],  # Inusual, enigmático, flotante
+        'phrygian_dominant': [0, 1, 4, 5, 7, 8, 10],  # Exótico, oriental, gitano
+        'double_harmonic': [0, 1, 4, 5, 7, 8, 11],  # Oriental, dramático, intenso
+        'hungarian_minor': [0, 2, 3, 6, 7, 8, 11],  # Melancólico, exótico, gitano
+        'hungarian_major': [0, 3, 4, 6, 7, 9, 10],
+        'neapolitan_minor': [0, 1, 3, 5, 7, 8, 11],  # Dramático, oscuro, clásico
+        'neapolitan_major': [0, 1, 3, 5, 7, 9, 11],  # Exótico, brillante, sorprendente
+        'persian': [0, 1, 4, 5, 6, 8, 11],  # Misterioso, oriental, exótico
+        'enigmatic': [0, 1, 4, 6, 8, 10, 11],  # Intrigante, complejo, misterioso
+        'hindu': [0, 2, 4, 5, 7, 8, 10],  # Místico, relajado, exótico
+        'japanese': [0, 1, 5, 7, 8],  # Oriental, pentatónico, sereno
+        'arabic': [0, 2, 4, 5, 6, 8, 10],  # Místico, exótico, intenso
+        'gypsy': [0, 2, 3, 6, 7, 8, 10],  # Apasionado, dramático, gitano
+        'byzantine': [0, 1, 4, 5, 7, 8, 11],  # Antiguo, místico, solemne
+        'balinese': [0, 1, 3, 7, 8],  # Etéreo, exótico, pentatónico
+        'todi': [0, 1, 3, 6, 7, 8, 11],  # Introspectivo, clásico indio, místico
+        'bebop_major': [0, 2, 4, 5, 7, 9, 10, 11],  # Sofisticado, fluido, jazzístico
+        'bebop_minor': [0, 2, 3, 5, 7, 8, 9, 10],  # Complejo, bluesy, jazzístico
+        'bebop_dominant': [0, 2, 4, 5, 7, 9, 10, 11],  # Rítmico, swing, jazzístico
+        'bebop_dorian': [0, 2, 3, 5, 7, 9, 10, 11],  # Melódico, fluido, jazzístico
+        'bebop_melodic_minor': [0, 2, 3, 5, 7, 8, 9, 11],  # Sofisticado, ambiguo, jazzístico
+        'bebop_harmonic_minor': [0, 2, 3, 5, 7, 8, 11, 12],  # Exótico, tenso, jazzístico
+        'flamenco': [0, 1, 3, 4, 5, 7, 8],  # Apasionado, español, flamenco
+        'romanian_minor': [0, 2, 3, 6, 7, 9, 10],  # Melancólico, exótico, gitano
+        'lydian_diminished': [0, 2, 3, 6, 7, 9, 11],  # Místico, exótico
+        'javanese': [0, 1, 3, 5, 7, 8, 11],  # Místico, oriental, exótico
+        'blues_major': [0, 2, 3, 4, 7, 9],  # Alegre, emotivo, bluesy
+        'blues_minor': [0, 3, 5, 6, 7, 10, 12],  # Triste, expresivo, bluesy
+        'lydian_augmented': [0, 2, 4, 6, 8, 9, 11],  # Brillante, futurista, luminoso
+        'half_whole_diminished': [0, 1, 3, 4, 6, 7, 9, 10],  # Tenso, cromático, misterioso
+        'harmonic_major': [0, 2, 4, 5, 7, 8, 11],  # Exótico, dramático, clásico
+        'altered_scale': [0, 1, 3, 4, 6, 8, 10],  # Tenso, disonante, jazzístico
+        'prometheus': [0, 2, 4, 6, 9, 10],  # Misterioso, moderno, innovador
+        'egyptian_pentatonic': [0, 2, 5, 7, 10],  # Exótico, místico, antiguo
+        'chinese_pentatonic': [0, 4, 6, 7, 11],  # Sereno, cultural, único
+    }
+    # 1) Root note index in the chromatic system
+    if note not in chromatic_scale:
+        raise ValueError(f"Invalid note: {note}")
+
+    root_index = chromatic_scale.index(note)
+
+    # 2) Build absolute scale (list of semitone values)
+    scale_intervals = scale_dictionary[scale_name]
+    scale_notes = [(root_index + interval) % 12 for interval in scale_intervals]
+
+    # Convert scale_notes into a set for fast membership checks
+    scale_note_set = set(scale_notes)
+
+    results = []
+
+    # 3) For each chord type (maj, min7, add9, etc.)
+    for chord_name, chord_intervals in chord_dictionary.items():
+
+        # 4) Try every degree in the scale as the chord root
+        for interval in scale_intervals:
+            chord_root = (root_index + interval) % 12
+            chord_root_note = chromatic_scale[chord_root]
+
+            # Build the actual chord tones for this specific root
+            chord_notes = [(chord_root + ci) % 12 for ci in chord_intervals]
+
+            # Check containment: all tones must exist in the scale
+            if all(n in scale_note_set for n in chord_notes):
+                full_name = f"{chord_root_note}{chord_name}"
+                results.append({
+                    "name": full_name,
+                    "root": chord_root_note,
+                    "type": chord_name,
+                    "notes": [chromatic_scale[n] for n in chord_notes]
+                })
+
+    return results
+
+
+
 # Static functions that don't depend on tuning
 def chord_patterns(input_value):
     # Your existing chord_patterns function stays the same

@@ -14,6 +14,7 @@ from fretboard_module import (
     draw_arpeggio,
     draw_black_scale,
     merge_images_vertically,
+    find_chords_in_scale,
 )
 
 # Configure logging
@@ -277,6 +278,58 @@ async def endpoint_scale():
         logger.error(f"Internal error in endpoint-scale: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "Internal server error"}), 500
+
+@app.post("/api/endpoint-chordinscale")
+async def endpoint_chordinscale():
+    """
+    Expects JSON body like:
+      Option 1: Direct list format
+        ["A","harmonic_minor"]
+      
+      Option 2: Dictionary format (new)
+        {"data": ["A","harmonic_minor"]}
+    
+    Returns a dictionary with all the chords within the scale.
+    """
+    logger.info("Processing /api/endpoint-scale request")
+    
+    try:
+        data = await request.get_json()
+        if not data:
+            logger.warning("Empty request body received")
+            return jsonify({"error": "Request body is empty"}), 400
+        
+        logger.info(f"Request data type: {type(data).__name__}")
+        
+        # Extract payload from either format
+        payload = extract_payload(data)[0]
+        
+        if not (isinstance(payload, list) or isinstance(payload, tuple)):
+            logger.warning(f"Invalid payload type after extraction: {type(payload)}")
+            return jsonify({"error": "Payload must be a list"}), 400
+        
+        if not payload:
+            logger.warning("Empty payload list received")
+            return jsonify({"error": "Payload list cannot be empty"}), 400
+            
+        logger.info(f"Processing {len(payload)} scale items")
+        logger.info(f"Scale items: {payload}")
+        
+        chords_in_scale = find_chords_in_scale(*payload[0])
+        
+        
+        return jsonify(chords_in_scale)
+        
+    except ValueError as e:
+        # This is a validation error - safe to return to client
+        logger.warning(f"Validation error in endpoint-scale: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        # Internal error - log full details but return generic message
+        logger.error(f"Internal error in endpoint-scale: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.post("/api/endpoint-chord")
