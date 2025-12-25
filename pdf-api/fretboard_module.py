@@ -128,11 +128,23 @@ class Fretboard:
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
         
-        # Calculate the position for the text to be centered
+        # Calculate image dimensions
         image_width = self.fretboard_width + 2 * self.border_thickness
         image_height = self.fretboard_height + 2 * self.border_thickness
-        text_x = (image_width - text_width) / 2
         text_y = (image_height - text_height - 40)
+        
+        # Determine alignment based on title content
+        title_lower = title.lower()
+        
+        if title_lower.startswith('chord'):
+            # Left justify for Chord titles
+            text_x = self.border_thickness  # Left padding
+        elif title_lower.startswith('scale'):
+            # Right justify for Scale titles
+            text_x = image_width - text_width - self.border_thickness  # Right padding
+        else:
+            # Center for other titles (fallback)
+            text_x = (image_width - text_width) / 2
         
         # Add the text to the image
         draw.text((text_x, text_y), title, font=self.font, fill=(255, 255, 255))
@@ -446,7 +458,7 @@ def draw_scale(draw_obj, root_note='C', scale_type='major'):
     if not pattern:
         return draw_obj
     
-    draw_obj = fb.fretboard_title(draw_obj, f"{root_note} {scale_type}")
+    draw_obj = fb.fretboard_title(draw_obj, f"Scale: {root_note} {scale_type}")
     root_note_index = fb.chromatic_scale.index(root_note)
     
     interval_colors = {
@@ -475,7 +487,7 @@ def draw_arpeggio(draw_obj, root_note='C', arpeggio_type='maj'):
     if not pattern:
         return draw_obj
     
-    draw_obj = fb.fretboard_title(draw_obj, f"{root_note} {arpeggio_type}")
+    draw_obj = fb.fretboard_title(draw_obj, f"Chord: {root_note} {arpeggio_type}")
     root_note_index = fb.chromatic_scale.index(root_note)
     colors = ['red', 'blue', 'green', 'purple', 'orange', 'yellow']
     

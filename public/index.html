@@ -102,6 +102,16 @@
           <option value="10">10</option>
         </select>
       </div>
+      <div class="field">
+        <label for="tuning-preset">Tuning preset</label>
+        <select id="tuning-preset">
+          <option value="">Custom</option>
+          <option value="E standard">E standard</option>
+          <option value="E standard 7str">E standard 7str</option>
+          <option value="B standard">B standard</option>
+          <option value="B standard 7str">B standard 7str</option>
+        </select>
+      </div>
     </div>
     <div id="tuning-notes" class="row" style="margin-top: 1rem;">
       <!-- Dynamic tuning selects will appear here -->
@@ -189,6 +199,14 @@
       "min6", "min6add9"
     ];
 
+    // Tuning presets
+    const TUNING_PRESETS = {
+      "E standard": ["E", "A", "D", "G", "B", "E"],                  // 6
+      "E standard 7str": ["B", "E", "A", "D", "G", "B", "E"],        // 7
+      "B standard": ["B", "E", "A", "D", "F#", "B"],                 // 6 down a 4th
+      "B standard 7str": ["F#", "B", "E", "A", "D", "F#", "B"]       // 7 down a 4th
+    };
+
     /***********************
      * DOM helpers
      ***********************/
@@ -220,6 +238,8 @@
     // Tuning elements
     const numStringsEl = qs('#num-strings');
     const tuningNotesEl = qs('#tuning-notes');
+    const tuningPresetEl = qs('#tuning-preset');
+
     let tuningNotes = ["E", "A", "D", "G", "B", "E"]; // Default standard tuning for 6 strings
 
     /***********************
@@ -237,51 +257,46 @@
 
     function createTuningSelects(numStrings) {
       tuningNotesEl.innerHTML = '';
-      
+
       // Ensure tuningNotes array has the right length
       if (tuningNotes.length !== numStrings) {
         if (numStrings > tuningNotes.length) {
-          // Add more strings with reasonable defaults
           const defaultNotes = ["B", "E", "A", "D", "G", "B", "E"];
           for (let i = tuningNotes.length; i < numStrings; i++) {
             tuningNotes.push(defaultNotes[i % defaultNotes.length]);
           }
         } else {
-          // Remove extra strings
           tuningNotes = tuningNotes.slice(0, numStrings);
         }
       }
-      
+
       // Create selects for each string
       for (let i = 0; i < numStrings; i++) {
         const field = document.createElement('div');
         field.className = 'field';
-        
+
         const label = document.createElement('label');
         label.textContent = `String ${i + 1}`;
         label.className = 'note';
-        
+
         const select = document.createElement('select');
         select.className = 'tuning-select';
         select.dataset.stringIndex = i;
-        
-        // Populate with notes
+
         NOTES.forEach(note => {
           const option = document.createElement('option');
           option.value = note;
           option.textContent = note;
           select.appendChild(option);
         });
-        
-        // Set current value
+
         select.value = tuningNotes[i] || NOTES[0];
-        
-        // Update tuningNotes array when changed
+
         select.addEventListener('change', (e) => {
           const index = parseInt(e.target.dataset.stringIndex);
           tuningNotes[index] = e.target.value;
         });
-        
+
         field.appendChild(label);
         field.appendChild(select);
         tuningNotesEl.appendChild(field);
@@ -296,13 +311,10 @@
         const opt = document.createElement('option');
         let label = '';
         if (t === 'scale') {
-          // ["A#", "lydian"]
           label = `Scale: ${item[0]} ${item[1]}`;
         } else if (t === 'chord') {
-          // ["A#", "mmaj7"]
           label = `Chord: ${item[0]} ${item[1]}`;
         } else {
-          // { scale: ["A#", "lydian"], chord: ["A#", "mmaj7"] }
           label = `Mixed: scale(${item.scale[0]} ${item.scale[1]}) | chord(${item.chord[0]} ${item.chord[1]})`;
         }
         opt.value = String(idx);
@@ -330,11 +342,11 @@
     [scaleTypeEl, mixedScaleTypeEl].forEach(el => fillOptions(el, SCALE_TYPES));
     [chordTypeEl, mixedChordTypeEl].forEach(el => fillOptions(el, CHORD_TYPES));
 
-    // Initialize tuning selects
-    createTuningSelects(parseInt(numStringsEl.value));
-
     // The queue we send to the API (array of arrays or dicts, depending on type)
     let payloadQueue = [];
+
+    // Initialize tuning selects
+    createTuningSelects(parseInt(numStringsEl.value, 10));
 
     // Set initial form visibility
     setFormVisibility();
@@ -344,10 +356,26 @@
      ***********************/
     typeEl.addEventListener('change', setFormVisibility);
 
-    // Update when number of strings changes
+    // Number of strings changed manually → custom
     numStringsEl.addEventListener('change', (e) => {
-      const numStrings = parseInt(e.target.value);
+      const numStrings = parseInt(e.target.value, 10);
+      tuningPresetEl.value = ""; // set to Custom
       createTuningSelects(numStrings);
+    });
+
+    // Tuning preset changed
+    tuningPresetEl.addEventListener('change', (e) => {
+      const presetName = e.target.value;
+      if (!presetName) {
+        // Custom; do nothing, user will edit manually
+        return;
+      }
+      const preset = TUNING_PRESETS[presetName];
+      if (!preset) return;
+
+      tuningNotes = preset.slice(); // copy
+      numStringsEl.value = String(preset.length);
+      createTuningSelects(preset.length);
     });
 
     // Add current form selection to queue
@@ -363,7 +391,6 @@
         const chord = chordTypeEl.value;
         payloadQueue.push([note, chord]);
       } else {
-        // mixed
         const nScale = noteMixedScaleEl.value;
         const sType = mixedScaleTypeEl.value;
         const nChord = noteMixedChordEl.value;
@@ -380,7 +407,6 @@
     delBtn.addEventListener('click', () => {
       const selected = Array.from(queueEl.selectedOptions).map(o => Number(o.value));
       if (!selected.length) return;
-      // Remove from end to start to keep indices valid
       selected.sort((a, b) => b - a).forEach(i => payloadQueue.splice(i, 1));
       refreshQueueListbox();
     });
@@ -408,13 +434,12 @@
       // Build the complete payload with tuning
       const completePayload = {
         data: payloadQueue,
-        tunning: tuningNotes // Use the current tuning notes array
+        tunning: tuningNotes // (keeping your original key name)
       };
 
       genBtn.disabled = true;
       genBtn.textContent = 'Generating…';
 
-      // Open a blank tab synchronously to avoid popup blockers
       const win = window.open('', '_blank');
 
       try {
@@ -437,11 +462,8 @@
         if (win) {
           win.location.href = pdfUrl;
         } else {
-          // Fallback if popup blocked
           window.location.href = pdfUrl;
         }
-
-        // Optional: revoke object URL later
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
       } catch (err) {
         if (win) win.close();
@@ -454,4 +476,3 @@
   </script>
 </body>
 </html>
-
